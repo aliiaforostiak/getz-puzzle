@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Concurrent Puzzle Solver</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #18212f;
+      --muted: #5d6b82;
+      --accent: #2646d1;
+      --border: #d9e1ee;
+      --shadow: 0 10px 30px rgba(25, 45, 92, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #eef3ff 0%, var(--bg) 220px);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    .hero {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 34px;
+      line-height: 1.15;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      max-width: 860px;
+      font-size: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    p, li {
+      color: var(--text);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: white;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f5f8ff;
+      color: var(--accent);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    code {
+      background: #eef3ff;
+      color: #20378c;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.95em;
+    }
+
+    .flow {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fbfcff;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">Документация для аналитика</p>
+      <h1>Конкурентный решатель головоломки</h1>
+      <p class="lead">
+        Этот пример показывает, как параллельно исследовать дерево состояний головоломки,
+        находить первое решение и восстанавливать последовательность ходов. Код реализует
+        упрощённый вариант идеи из книги Гетца: каждая новая позиция рассматривается как
+        отдельная задача в пуле потоков.
+      </p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Что делает программа</h2>
+        <ul>
+          <li><code>Main</code> создаёт стартовую конфигурацию 8-puzzle.</li>
+          <li><code>SlidingPuzzle</code> знает правила игры: какие ходы разрешены и когда достигнута цель.</li>
+          <li><code>ConcurrentPuzzleSolver</code> запускает параллельный поиск решения.</li>
+          <li>Когда цель найдена, программа печатает список ходов и пошагово показывает результат.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Ключевая идея</h2>
+        <p class="muted">
+          Вместо последовательного обхода всех состояний каждое возможное продолжение позиции
+          отправляется в <code>ExecutorService</code> как отдельная задача. Повторно посещённые
+          состояния отсекаются через конкурентную карту, поэтому один и тот же узел не исследуется дважды.
+        </p>
+      </article>
+    </section>
+
+    <section class="card" style="margin-bottom: 20px;">
+      <h2>Классы и ответственность</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Класс</th>
+              <th>Ответственность</th>
+              <th>Что важно аналитику</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>org.example.Main</code></td>
+              <td>Точка входа и демонстрационный сценарий.</td>
+              <td>Создаёт стартовую доску, запускает решатель, выводит решение и промежуточные состояния.</td>
+            </tr>
+            <tr>
+              <td><code>org.example.puzzle.ConcurrentPuzzleSolver</code></td>
+              <td>Оркестрирует конкурентный поиск.</td>
+              <td>Делает первую задачу из стартовой позиции, раздаёт дочерние позиции в пул и ждёт первое найденное решение.</td>
+            </tr>
+            <tr>
+              <td><code>org.example.puzzle.Puzzle</code></td>
+              <td>Контракт для любой головоломки.</td>
+              <td>Определяет старт, проверку цели, генерацию ходов и применение хода к позиции.</td>
+            </tr>
+            <tr>
+              <td><code>org.example.puzzle.SlidingPuzzle</code></td>
+              <td>Правила 8-puzzle.</td>
+              <td>Знает, где находятся допустимые направления движения и как выглядит целевая конфигурация.</td>
+            </tr>
+            <tr>
+              <td><code>org.example.puzzle.BoardPosition</code></td>
+              <td>Неизменяемое состояние доски.</td>
+              <td>Хранит размер и список плиток, умеет находить пустую клетку и менять две плитки местами.</td>
+            </tr>
+            <tr>
+              <td><code>org.example.puzzle.Direction</code></td>
+              <td>Перечисление ходов.</td>
+              <td>Четыре направления: вверх, вниз, влево, вправо. Каждое хранит смещение по строкам и столбцам.</td>
+            </tr>
+            <tr>
+              <td><code>org.example.puzzle.PuzzleNode</code></td>
+              <td>Узел дерева поиска.</td>
+              <td>Хранит текущую позицию, ссылку на родителя и последний ход для восстановления пути к решению.</td>
+            </tr>
+            <tr>
+              <td><code>org.example.puzzle.ValueLatch</code></td>
+              <td>Однократная публикация результата.</td>
+              <td>Один поток записывает найденное решение, остальные ждут и затем получают итоговую позицию.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Поток выполнения</h2>
+        <div class="flow">
+          <div class="step">
+            <strong>1. Инициализация</strong>
+            <span class="muted">`Main` создаёт стартовую позицию и пул потоков.</span>
+          </div>
+          <div class="step">
+            <strong>2. Запуск решения</strong>
+            <span class="muted">`ConcurrentPuzzleSolver.solve()` кладёт стартовый узел в пул как первую задачу.</span>
+          </div>
+          <div class="step">
+            <strong>3. Параллельный обход</strong>
+            <span class="muted">Каждый узел проверяется на цель, затем порождает дочерние позиции через допустимые ходы.</span>
+          </div>
+          <div class="step">
+            <strong>4. Отсечение повторов</strong>
+            <span class="muted">Если позиция уже встречалась, она не исследуется повторно.</span>
+          </div>
+          <div class="step">
+            <strong>5. Публикация ответа</strong>
+            <span class="muted">При достижении цели узел сохраняется в `ValueLatch`, после чего путь собирается назад по родителям.</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Как читать код</h2>
+        <ul>
+          <li>Сначала смотреть на <code>Main</code>, если нужен сценарий запуска.</li>
+          <li>Затем <code>ConcurrentPuzzleSolver</code>, если нужно понять конкурентную механику.</li>
+          <li>Потом <code>SlidingPuzzle</code> и <code>BoardPosition</code>, если нужны правила и данные.</li>
+          <li><code>ValueLatch</code> важен для понимания того, как фиксируется единственный результат.</li>
+        </ul>
+
+        <h3 style="margin-top: 18px;">Ограничения примера</h3>
+        <ul>
+          <li>Не выполняется проверка на решаемость конфигурации.</li>
+          <li>Не гарантируется поиск кратчайшего решения, если несколько веток найдут цель одновременно.</li>
+          <li>Пример рассчитан на демонстрацию подхода, а не на оптимизацию для больших досок.</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

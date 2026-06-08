@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Developer Guide - Concurrent Puzzle Solver</title>
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --panel: #ffffff;
+      --text: #1d2633;
+      --muted: #5d6b7d;
+      --accent: #1f4bd8;
+      --accent-2: #0f766e;
+      --border: #d9e2ee;
+      --shadow: 0 14px 30px rgba(22, 34, 56, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(31, 75, 216, 0.10), transparent 28%),
+        radial-gradient(circle at 85% 10%, rgba(15, 118, 110, 0.08), transparent 24%),
+        linear-gradient(180deg, #edf2ff 0%, var(--bg) 220px);
+      line-height: 1.6;
+    }
+
+    .wrap {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 28px 20px 56px;
+    }
+
+    .hero,
+    .card {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 34px;
+      line-height: 1.15;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 980px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .toc {
+      padding: 22px 24px;
+      margin-bottom: 20px;
+    }
+
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .sections {
+      display: grid;
+      gap: 20px;
+    }
+
+    .card {
+      padding: 22px 24px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+    }
+
+    h3 {
+      margin: 18px 0 10px;
+      font-size: 18px;
+    }
+
+    h4 {
+      margin: 16px 0 8px;
+      font-size: 16px;
+    }
+
+    p, li {
+      color: var(--text);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: #eef4ff;
+      color: #20389a;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .block {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fcfdff;
+    }
+
+    .block + .block {
+      margin-top: 12px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
+    }
+
+    th {
+      background: #f7f9ff;
+      color: var(--accent);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    code {
+      background: #eef4ff;
+      color: #20378c;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.95em;
+    }
+
+    pre {
+      margin: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 14px;
+      overflow: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 980px) {
+      .toc-grid,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Developer Guide</p>
+      <h1>Подробная инструкция по классам и методам</h1>
+      <p class="lead">
+        Эта страница рассчитана на разработчика уровня junior: здесь поясняется, что делает каждый
+        класс, зачем нужен каждый метод, какой у него контракт и как данные проходят через систему.
+        Если нужно быстро разобраться в коде и вносить изменения без риска сломать поток поиска,
+        начинай отсюда.
+      </p>
+    </section>
+
+    <section class="card toc" aria-label="Оглавление">
+      <h2>Оглавление</h2>
+      <div class="toc-grid">
+        <ul>
+          <li><a href="#how-it-works">Как устроено решение</a></li>
+          <li><a href="#entrypoint">`Main`</a></li>
+          <li><a href="#solver">`ConcurrentPuzzleSolver`</a></li>
+          <li><a href="#puzzle-contract">`Puzzle`</a></li>
+          <li><a href="#sliding-puzzle">`SlidingPuzzle`</a></li>
+        </ul>
+        <ul>
+          <li><a href="#board-position">`BoardPosition`</a></li>
+          <li><a href="#direction">`Direction`</a></li>
+          <li><a href="#node">`PuzzleNode`</a></li>
+          <li><a href="#latch">`ValueLatch`</a></li>
+          <li><a href="#extension">Как расширять</a></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="sections">
+      <article class="card" id="how-it-works">
+        <h2>Как устроено решение</h2>
+        <div class="meta">
+          <span class="pill">Конкурентный поиск</span>
+          <span class="pill">Параллельные задачи</span>
+          <span class="pill">Неизменяемые состояния</span>
+        </div>
+        <div class="block">
+          <p>
+            Система работает как поисковик по дереву состояний. Каждая позиция головоломки
+            рассматривается как отдельный узел. Из узла генерируются следующие допустимые ходы,
+            а каждый новый ход может быть запущен в другом потоке.
+          </p>
+          <p>
+            Чтобы не зациклиться, уже увиденные позиции хранятся в конкурентной карте. Чтобы не
+            потерять решение, найденный узел один раз публикуется через <code>ValueLatch</code>.
+            Затем путь восстанавливается обратным проходом по родителям узлов.
+          </p>
+        </div>
+      </article>
+
+      <article class="card" id="entrypoint">
+        <h2>`Main`</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Метод</th>
+                <th>Что делает</th>
+                <th>На что смотреть</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>main(String[] args)</code></td>
+                <td>Создаёт стартовую конфигурацию, запускает решатель, печатает найденный путь.</td>
+                <td>Это демонстрационный сценарий. В реальном приложении сюда можно подставить ввод пользователя или чтение из файла.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Пошагово</h3>
+        <ul>
+          <li>Создаётся объект <code>BoardPosition</code> со стартовым состоянием.</li>
+          <li>Из него собирается <code>SlidingPuzzle</code>, который знает правила игры.</li>
+          <li>Создаётся пул потоков через <code>Executors.newFixedThreadPool</code>.</li>
+          <li><code>ConcurrentPuzzleSolver.solve()</code> возвращает список ходов.</li>
+          <li>После этого код печатает старт, решение и промежуточные состояния.</li>
+        </ul>
+        <h3>Типичные ошибки</h3>
+        <ul>
+          <li>Забыть закрыть executor в <code>finally</code>.</li>
+          <li>Передать некорректную стартовую доску без пустой клетки.</li>
+          <li>Не обработать <code>InterruptedException</code>.</li>
+        </ul>
+      </article>
+
+      <article class="card" id="solver">
+        <h2>`ConcurrentPuzzleSolver`</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Элемент</th>
+                <th>Роль</th>
+                <th>Подробности</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ConcurrentPuzzleSolver(Puzzle, ExecutorService)</code></td>
+                <td>Конструктор зависимостей.</td>
+                <td>Получает правило игры и пул потоков. Сам решатель не создаёт executor внутри себя, это делает вызывающий код.</td>
+              </tr>
+              <tr>
+                <td><code>solve()</code></td>
+                <td>Запускает поиск и ждёт результат.</td>
+                <td>Стартует с начальной позиции, ждёт публикацию найденного узла и возвращает список ходов от старта до цели.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Как работает <code>solve()</code></h3>
+        <ol>
+          <li>Создаётся <code>ValueLatch</code> для первого найденного решения.</li>
+          <li>Создаётся <code>ConcurrentHashMap</code> для запоминания уже посещённых позиций.</li>
+          <li>В пул отправляется первый узел с начальной позицией.</li>
+          <li>Метод ждёт, пока какой-то поток не положит решение в latch.</li>
+          <li>Когда решение найдено, путь берётся через <code>PuzzleNode.asMoveList()</code>.</li>
+        </ol>
+
+        <h3>Как работает <code>newTask(...)</code></h3>
+        <div class="block">
+          <p>
+            Это приватная фабрика задач. Она создаёт <code>Runnable</code>, который умеет проверить
+            состояние, отбросить дубликаты, определить цель и запустить дочерние состояния.
+          </p>
+          <ul>
+            <li>Сначала задача проверяет, не найдено ли решение раньше.</li>
+            <li>Потом пробует добавить текущую позицию в <code>seen</code>.</li>
+            <li>Если позиция уже была, задача завершается сразу.</li>
+            <li>Если позиция целевая, текущий узел публикуется в <code>ValueLatch</code>.</li>
+            <li>Иначе задача генерирует дочерние узлы и отправляет их в executor.</li>
+          </ul>
+        </div>
+
+        <h3>Важный контракт</h3>
+        <p class="muted">
+          Узлы должны быть неизменяемыми по смыслу. Если позиция будет меняться после помещения в
+          <code>seen</code>, поиск начнёт вести себя непредсказуемо.
+        </p>
+      </article>
+
+      <article class="card" id="puzzle-contract">
+        <h2>`Puzzle`</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Метод</th>
+                <th>Контракт</th>
+                <th>Что реализует конкретная игра</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>initialPosition()</code></td>
+                <td>Возвращает начальное состояние.</td>
+                <td>Для 8-puzzle это стартовая доска.</td>
+              </tr>
+              <tr>
+                <td><code>isGoal(P)</code></td>
+                <td>Проверяет, является ли позиция конечной.</td>
+                <td>Для 8-puzzle все плитки должны стоять по порядку, а пустая клетка быть последней.</td>
+              </tr>
+              <tr>
+                <td><code>legalMoves(P)</code></td>
+                <td>Возвращает допустимые ходы из позиции.</td>
+                <td>Для 8-puzzle это направления, куда можно сдвинуть пустую клетку.</td>
+              </tr>
+              <tr>
+                <td><code>move(P, M)</code></td>
+                <td>Возвращает новую позицию после применения хода.</td>
+                <td>Для 8-puzzle это обмен пустой клетки с соседней плиткой.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Зачем нужен интерфейс</h3>
+        <ul>
+          <li>Позволяет переиспользовать конкурентный решатель для разных игр.</li>
+          <li>Отделяет алгоритм поиска от правил конкретной головоломки.</li>
+          <li>Упрощает тестирование: можно подставить небольшой искусственный puzzle.</li>
+        </ul>
+      </article>
+
+      <article class="card" id="sliding-puzzle">
+        <h2>`SlidingPuzzle`</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Метод</th>
+                <th>Что делает</th>
+                <th>Подводные камни</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SlidingPuzzle(BoardPosition)</code></td>
+                <td>Сохраняет стартовую позицию.</td>
+                <td>Должна быть валидная доска, иначе дальнейшие методы могут упасть.</td>
+              </tr>
+              <tr>
+                <td><code>initialPosition()</code></td>
+                <td>Возвращает стартовую доску.</td>
+                <td>Используется решателем как корень поиска.</td>
+              </tr>
+              <tr>
+                <td><code>isGoal(BoardPosition)</code></td>
+                <td>Проверяет, собрана ли головоломка.</td>
+                <td>Логика жёстко завязана на правильный порядок плиток для 3x3 доски.</td>
+              </tr>
+              <tr>
+                <td><code>legalMoves(BoardPosition)</code></td>
+                <td>Возвращает направления, доступные пустой клетке.</td>
+                <td>Нужно учитывать границы поля, иначе ход станет недопустимым.</td>
+              </tr>
+              <tr>
+                <td><code>move(BoardPosition, Direction)</code></td>
+                <td>Строит новое состояние после хода.</td>
+                <td>Метод не меняет входной объект, а создаёт новый.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Пример использования</h3>
+        <pre><code>BoardPosition start = new BoardPosition(3, List.of(
+    1, 2, 3,
+    4, 5, 6,
+    0, 7, 8
+));
+SlidingPuzzle puzzle = new SlidingPuzzle(start);
+List&lt;Direction&gt; moves = puzzle.legalMoves(start);</code></pre>
+      </article>
+
+      <section class="grid-2">
+        <article class="card" id="board-position">
+          <h2>`BoardPosition`</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Метод</th>
+                  <th>Назначение</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>BoardPosition(int, List&lt;Integer&gt;)</code></td>
+                  <td>Создаёт позицию доски и валидирует размер.</td>
+                </tr>
+                <tr>
+                  <td><code>size()</code></td>
+                  <td>Возвращает размер стороны доски.</td>
+                </tr>
+                <tr>
+                  <td><code>tiles()</code></td>
+                  <td>Возвращает список плиток в виде неизменяемой копии.</td>
+                </tr>
+                <tr>
+                  <td><code>blankIndex()</code></td>
+                  <td>Ищет индекс пустой клетки <code>0</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>swap(int, int)</code></td>
+                  <td>Создаёт новое состояние с обменёнными плитками.</td>
+                </tr>
+                <tr>
+                  <td><code>equals / hashCode</code></td>
+                  <td>Позволяют использовать позицию как ключ в карте посещённых состояний.</td>
+                </tr>
+                <tr>
+                  <td><code>toString()</code></td>
+                  <td>Печатает доску в читаемом виде.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Почему класс неизменяемый</h3>
+          <ul>
+            <li>Так безопаснее использовать его в нескольких потоках.</li>
+            <li>Объекты можно хранить в <code>ConcurrentHashMap</code> без риска изменения ключа.</li>
+            <li>Каждый ход создаёт новое состояние, а не ломает старое.</li>
+          </ul>
+        </article>
+
+        <article class="card" id="direction">
+          <h2>`Direction`</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Элемент</th>
+                  <th>Что означает</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>UP</code></td>
+                  <td>Сдвиг пустой клетки вверх.</td>
+                </tr>
+                <tr>
+                  <td><code>DOWN</code></td>
+                  <td>Сдвиг пустой клетки вниз.</td>
+                </tr>
+                <tr>
+                  <td><code>LEFT</code></td>
+                  <td>Сдвиг пустой клетки влево.</td>
+                </tr>
+                <tr>
+                  <td><code>RIGHT</code></td>
+                  <td>Сдвиг пустой клетки вправо.</td>
+                </tr>
+                <tr>
+                  <td><code>rowDelta()</code></td>
+                  <td>Смещение по строкам.</td>
+                </tr>
+                <tr>
+                  <td><code>columnDelta()</code></td>
+                  <td>Смещение по столбцам.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Как использовать</h3>
+          <p class="muted">
+            `Direction` нужен как типобезопасная замена строкам или числам. Это исключает ошибки,
+            когда кто-то передаёт невалидное направление.
+          </p>
+        </article>
+      </section>
+
+      <section class="grid-2">
+        <article class="card" id="node">
+          <h2>`PuzzleNode`</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Поле / метод</th>
+                  <th>Роль</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>parent</code></td>
+                  <td>Ссылка на предыдущий узел в дереве поиска.</td>
+                </tr>
+                <tr>
+                  <td><code>move</code></td>
+                  <td>Последний ход, который привёл в текущую позицию.</td>
+                </tr>
+                <tr>
+                  <td><code>position()</code></td>
+                  <td>Возвращает текущую позицию узла.</td>
+                </tr>
+                <tr>
+                  <td><code>asMoveList()</code></td>
+                  <td>Восстанавливает путь от корня до текущего узла.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Почему это важно</h3>
+          <p class="muted">
+            Решатель хранит не только конечную позицию, но и цепочку родителей. Без этого нельзя
+            вернуть пользователю сам путь решения, только факт, что цель найдена.
+          </p>
+        </article>
+
+        <article class="card" id="latch">
+          <h2>`ValueLatch`</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Метод</th>
+                  <th>Что делает</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>isSet()</code></td>
+                  <td>Проверяет, было ли уже опубликовано значение.</td>
+                </tr>
+                <tr>
+                  <td><code>setValue(T)</code></td>
+                  <td>Пробует записать значение один раз и разблокировать ожидание.</td>
+                </tr>
+                <tr>
+                  <td><code>getValue()</code></td>
+                  <td>Ждёт, пока значение не будет установлено, и возвращает его.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Смысл класса</h3>
+          <ul>
+            <li>Это синхронизационный объект для сценария "найти первое решение".</li>
+            <li>Он не хранит несколько ответов, только один.</li>
+            <li>Он отделяет момент нахождения решения от момента, когда вызывающий код его получит.</li>
+          </ul>
+        </article>
+      </section>
+
+      <article class="card" id="extension">
+        <h2>Как расширять проект</h2>
+        <div class="grid-2">
+          <div class="block">
+            <h3>Добавить новую головоломку</h3>
+            <ul>
+              <li>Создать новый класс, который реализует <code>Puzzle&lt;P, M&gt;</code>.</li>
+              <li>Определить свой тип позиции <code>P</code> и свой тип хода <code>M</code>.</li>
+              <li>Передать новую реализацию в <code>ConcurrentPuzzleSolver</code>.</li>
+            </ul>
+          </div>
+          <div class="block">
+            <h3>Сделать ввод гибким</h3>
+            <ul>
+              <li>Вынести стартовую позицию из <code>Main</code> в параметры запуска.</li>
+              <li>Добавить парсинг из файла или строки.</li>
+              <li>При необходимости показать несколько стартовых конфигураций для сравнения.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Что проверять при изменениях</h3>
+        <ul>
+          <li>Не ломается ли <code>equals/hashCode</code> у позиций.</li>
+          <li>Не меняются ли объекты позиции после помещения в карту посещённых состояний.</li>
+          <li>Корректно ли закрывается executor после завершения.</li>
+          <li>Возвращается ли пустой список, если старт уже является целью.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Связанные файлы</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Файл</th>
+                <th>Ссылка</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Main.java</code></td>
+                <td><a href="../src/main/java/org/example/Main.java">Открыть исходник</a></td>
+              </tr>
+              <tr>
+                <td><code>ConcurrentPuzzleSolver.java</code></td>
+                <td><a href="../src/main/java/org/example/puzzle/ConcurrentPuzzleSolver.java">Открыть исходник</a></td>
+              </tr>
+              <tr>
+                <td><code>SlidingPuzzle.java</code></td>
+                <td><a href="../src/main/java/org/example/puzzle/SlidingPuzzle.java">Открыть исходник</a></td>
+              </tr>
+              <tr>
+                <td><code>BoardPosition.java</code></td>
+                <td><a href="../src/main/java/org/example/puzzle/BoardPosition.java">Открыть исходник</a></td>
+              </tr>
+              <tr>
+                <td><code>Direction.java</code></td>
+                <td><a href="../src/main/java/org/example/puzzle/Direction.java">Открыть исходник</a></td>
+              </tr>
+              <tr>
+                <td><code>PuzzleNode.java</code></td>
+                <td><a href="../src/main/java/org/example/puzzle/PuzzleNode.java">Открыть исходник</a></td>
+              </tr>
+              <tr>
+                <td><code>ValueLatch.java</code></td>
+                <td><a href="../src/main/java/org/example/puzzle/ValueLatch.java">Открыть исходник</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
