@@ -1,84 +1,152 @@
-# Concurrent Puzzle Solver
+﻿# Concurrent Puzzle Solver
 
-Конкурентная реализация решателя головоломки в духе примера из книги Брайана Гетца *Java Concurrency in Practice*.
+Spring Boot REST service for solving sliding puzzles using the concurrent search approach from *Java Concurrency in Practice*.
 
-Проект демонстрирует:
-- параллельный поиск решения через `ExecutorService`;
-- защиту от повторного обхода состояний;
-- восстановление пути решения через цепочку узлов;
-- отдельный контракт `Puzzle<P, M>` для переиспользования решателя с другими головоломками.
+## What it does
 
-## Стек
+- Solves an N x N sliding puzzle.
+- Runs the search concurrently with `ExecutorService`.
+- Stops duplicate state expansion.
+- Returns the solution path, board states, and execution time.
+- Exposes a REST API with Swagger/OpenAPI documentation.
+
+## Tech Stack
 
 - Java 21
+- Spring Boot 3.5.3
 - Maven
 - JUnit 5
+- springdoc-openapi
 
-## Запуск
+## Run
 
-Сборка и тесты:
+Run tests:
 
 ```bash
 mvn test
 ```
 
-Сборка без тестов:
+Run the application:
+
+```bash
+mvn spring-boot:run
+```
+
+Build without tests:
 
 ```bash
 mvn compile
 ```
 
-Запуск примера после сборки:
+Open the app in a browser:
 
-```bash
-java -cp target/classes org.example.Main
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+## REST API
+
+Base path: `/api/puzzles`
+
+### `POST /api/puzzles/solve`
+
+Solves a puzzle.
+
+Request body:
+
+```json
+{
+  "size": 3,
+  "tiles": [1, 2, 3, 4, 5, 6, 0, 7, 8],
+  "timeoutSeconds": 15
+}
 ```
 
-В IDE можно запускать `org.example.Main` напрямую.
+Successful response `200 OK`:
 
-## Что делает приложение
+```json
+{
+  "solved": true,
+  "moves": ["RIGHT", "RIGHT"],
+  "boards": [
+    [1, 2, 3, 4, 5, 6, 0, 7, 8],
+    [1, 2, 3, 4, 5, 6, 7, 0, 8],
+    [1, 2, 3, 4, 5, 6, 7, 8, 0]
+  ],
+  "durationMs": 12,
+  "message": "Solved"
+}
+```
 
-Точка входа `org.example.Main` создаёт стартовую позицию 8-puzzle, запускает `ConcurrentPuzzleSolver` и печатает найденный путь.
+Possible errors:
 
-По умолчанию:
-- поиск ограничен 15 секундами;
-- при успешном решении возвращается список ходов;
-- при таймауте поиск останавливается и выбрасывается исключение.
+- `400 Bad Request` - invalid JSON, wrong board size, duplicate tiles, missing `0`, `timeoutSeconds <= 0`.
+- `408 Request Timeout` - no solution was found within the given time.
+- `500 Internal Server Error` - unexpected server failure.
 
-## Структура проекта
+Error response example:
 
-- `src/main/java/org/example/Main.java` - демонстрационный запуск.
-- `src/main/java/org/example/puzzle/ConcurrentPuzzleSolver.java` - конкурентный поиск решения.
-- `src/main/java/org/example/puzzle/SlidingPuzzle.java` - правила 8-puzzle.
-- `src/main/java/org/example/puzzle/BoardPosition.java` - неизменяемое состояние доски.
-- `src/main/java/org/example/puzzle/Direction.java` - возможные ходы.
-- `src/main/java/org/example/puzzle/Puzzle.java` - контракт головоломки.
-- `src/main/java/org/example/puzzle/PuzzleNode.java` - узел дерева поиска.
-- `src/main/java/org/example/puzzle/ValueLatch.java` - однократная публикация результата.
-- `src/test/java/org/example/puzzle/*Test.java` - тесты на критичные сценарии.
+```json
+{
+  "status": 408,
+  "error": "Request Timeout",
+  "message": "No solution found within 15 seconds",
+  "timestamp": "2026-06-10T08:00:00Z",
+  "details": []
+}
+```
 
-## Документация
+### `GET /api/puzzles/health`
 
-- `docs/concurrent-puzzle-solver.html` - обзор для аналитика.
-- `docs/developer-guide.html` - подробная инструкция для разработчика.
+Returns application health.
 
-## Тесты
+```json
+{
+  "status": "UP"
+}
+```
 
-Тесты покрывают:
-- корректность `BoardPosition`;
-- правила `SlidingPuzzle`;
-- поведение `ValueLatch` с ожиданием и таймаутом;
-- happy path и timeout/cycle сценарии `ConcurrentPuzzleSolver`.
+## Project Structure
 
-## Коммит и версия
+- `src/main/java/org/example/PuzzleRestApplication.java` - Spring Boot entrypoint.
+- `src/main/java/org/example/puzzle/ConcurrentPuzzleSolver.java` - concurrent search implementation.
+- `src/main/java/org/example/puzzle/SlidingPuzzle.java` - 8-puzzle rules.
+- `src/main/java/org/example/puzzle/BoardPosition.java` - immutable board state.
+- `src/main/java/org/example/puzzle/Direction.java` - possible moves.
+- `src/main/java/org/example/puzzle/Puzzle.java` - puzzle contract.
+- `src/main/java/org/example/puzzle/PuzzleNode.java` - search tree node.
+- `src/main/java/org/example/puzzle/ValueLatch.java` - one-time result latch.
+- `src/main/java/org/example/rest/controller/*` - REST controller and exception handling.
+- `src/main/java/org/example/rest/service/*` - service layer.
+- `src/main/java/org/example/rest/dto/*` - request/response DTOs.
+- `src/main/java/org/example/rest/engine/*` - adapter around the solver.
 
-Репозиторий уже инициализирован и связан с GitHub:
+## Tests
 
-`https://github.com/aliiaforostiak/getz-puzlze`
+Tests cover:
 
-## Примечание
+- `BoardPosition` validation and immutability.
+- `SlidingPuzzle` move rules.
+- `ValueLatch` waiting and timeout behavior.
+- `ConcurrentPuzzleSolver` happy path, duplicates, timeout, and shutdown race.
+- REST controller, full integration flow, and OpenAPI documentation.
 
-Если хочешь, я могу добавить сюда:
-- пример входной позиции и ожидаемого вывода;
-- краткую UML-схему;
-- раздел "Как расширить на другую головоломку".
+Run a specific test class:
+
+```bash
+mvn -Dtest=PuzzleControllerTest test
+```
+
+## Documentation
+
+- `docs/concurrent-puzzle-solver.html` - analyst overview.
+- `docs/developer-guide.html` - developer guide.
+
+## Repository
+
+- `https://github.com/aliiaforostiak/getz-puzzle`
+
+## Notes
+
+- The application is REST-first now.
+- The old console `Main` entrypoint was removed.
+- If you want a new demo launcher, it should be added as a separate sample, not as the primary entrypoint.

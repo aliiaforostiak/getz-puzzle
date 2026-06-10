@@ -7,14 +7,18 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConcurrentPuzzleSolverTest {
@@ -155,6 +159,31 @@ class ConcurrentPuzzleSolverTest {
         }
     }
 
+    @Test
+    void ignoresRejectedExecutionAfterTimeoutShutdown() throws InterruptedException {
+        CountDownLatch releaseLatch = new CountDownLatch(1);
+        AtomicReference<Throwable> uncaughtException = new AtomicReference<>();
+
+        BlockingPuzzle puzzle = new BlockingPuzzle(releaseLatch);
+        ExecutorService executor = Executors.newSingleThreadExecutor(task -> {
+            Thread thread = new Thread(task, "solver-worker");
+            thread.setUncaughtExceptionHandler((ignoredThread, throwable) -> uncaughtException.set(throwable));
+            return thread;
+        });
+
+        try {
+            ConcurrentPuzzleSolver<String, String> solver = new ConcurrentPuzzleSolver<>(puzzle, executor);
+
+            assertThrows(TimeoutException.class, () -> solver.solve(50, TimeUnit.MILLISECONDS));
+
+            releaseLatch.countDown();
+            assertTrue(executor.awaitTermination(1, TimeUnit.SECONDS));
+            assertNull(uncaughtException.get());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     private static final class QueueExecutorService extends AbstractExecutorService {
         private final Deque<Runnable> tasks = new ArrayDeque<>();
         private boolean running;
@@ -267,6 +296,44 @@ class ConcurrentPuzzleSolverTest {
                 throw new IllegalArgumentException("No transition for " + position + " + " + move);
             }
             return nextPosition;
+        }
+    }
+
+    private static final class BlockingPuzzle implements Puzzle<String, String> {
+        private final CountDownLatch releaseLatch;
+
+        private BlockingPuzzle(CountDownLatch releaseLatch) {
+            this.releaseLatch = releaseLatch;
+        }
+
+        @Override
+        public String initialPosition() {
+            return "start";
+        }
+
+        @Override
+        public boolean isGoal(String position) {
+            return false;
+        }
+
+        @Override
+        public List<String> legalMoves(String position) {
+            if (!"start".equals(position)) {
+                return List.of();
+            }
+            while (true) {
+                try {
+                    releaseLatch.await();
+                    return List.of("toNext");
+                } catch (InterruptedException ignored) {
+                    // Keep waiting so the task can submit after timeout and shutdown.
+                }
+            }
+        }
+
+        @Override
+        public String move(String position, String move) {
+            return "next";
         }
     }
 }

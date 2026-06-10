@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -55,7 +56,11 @@ public final class ConcurrentPuzzleSolver<P, M> {
             }
             for (M move : puzzle.legalMoves(node.position())) {
                 P nextPosition = puzzle.move(node.position(), move);
-                executor.execute(newTask(new PuzzleNode<>(node, move, nextPosition), solution, seen));
+                try {
+                    executor.execute(newTask(new PuzzleNode<>(node, move, nextPosition), solution, seen));
+                } catch (RejectedExecutionException ignored) {
+                    return;
+                }
             }
         };
     }
