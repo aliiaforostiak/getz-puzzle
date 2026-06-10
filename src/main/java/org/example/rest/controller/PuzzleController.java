@@ -90,7 +90,19 @@ public class PuzzleController {
             @ApiResponse(
                     responseCode = "500",
                     description = "Unexpected server error",
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = RestExceptionHandler.ApiErrorResponse.class),
+                            examples = @ExampleObject("""
+                                    {
+                                      "status": 500,
+                                      "error": "Internal Server Error",
+                                      "message": "Unexpected server error",
+                                      "timestamp": "2026-06-10T08:00:00Z",
+                                      "details": []
+                                    }
+                                    """)
+                    )
             )
     })
     public ResponseEntity<SolvePuzzleResponse> solve(@Valid @RequestBody SolvePuzzleRequest request) {
